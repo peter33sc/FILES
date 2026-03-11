@@ -26,9 +26,9 @@ from dataclasses import dataclass, field
 from typing import Optional, Dict, List, Tuple, Iterator
 from collections import defaultdict
 
-from cram.configs.cram_config import CRAMConfig
-from cram.core.model import CRAMModel
-from cram.core.optimizer import CRAMOptimizer, WSACScheduler
+from cram_config import CRAMConfig
+from model import CRAMModel
+from optimizer import CRAMOptimizer, WSACScheduler
 
 
 # ─────────────────────────────────────────────────────────────────────

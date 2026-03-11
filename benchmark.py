@@ -29,10 +29,10 @@ from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass, field
 from collections import defaultdict
 
-from cram.configs.cram_config import CRAMConfig
-from cram.core.model import CRAMModel
-from cram.core.transformer_baseline import BaselineTransformer, TransformerConfig
-from cram.core.trainer import SyntheticDataset, TrainConfig
+from cram_config import CRAMConfig
+from model import CRAMModel
+from transformer_baseline import BaselineTransformer, TransformerConfig
+from trainer import SyntheticDataset, TrainConfig
 
 
 # ─────────────────────────────────────────────────────────────────────
