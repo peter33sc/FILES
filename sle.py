@@ -136,18 +136,30 @@ class LatentScratchpad(nn.Module):
     def soft_write(
         self,
         S: torch.Tensor,           # [B, M_s, d_prop]
-        candidate: torch.Tensor,   # [B, d_prop]
+        candidate: torch.Tensor,   # [d_prop] OR [B, d_prop] — handles both
         conf: float = 1.0
     ) -> torch.Tensor:
         """
         Soft attention-based write to scratchpad.
         Write to most similar slot, blend with learned gate.
+        Handles both 1D [d_prop] and 2D [B, d_prop] candidates.
         """
-        B = S.shape[0]
+        B, M_s, d_prop = S.shape
+
+        # Normalize candidate to [B, d_prop] regardless of input shape
+        if candidate.dim() == 1:
+            # [d_prop] → [B, d_prop]
+            candidate = candidate.unsqueeze(0).expand(B, -1)
+        elif candidate.dim() == 2 and candidate.shape[0] != B:
+            candidate = candidate.expand(B, -1)
+
         cand_exp = candidate.unsqueeze(1)                     # [B, 1, d_prop]
 
-        # Attention over slots (which slot to write to)
-        sim = F.cosine_similarity(cand_exp, S, dim=-1)       # [B, M_s]
+        # Attention over slots — cosine similarity [B, M_s]
+        # Normalize both for numerical stability
+        cand_norm = F.normalize(cand_exp, dim=-1)             # [B, 1, d_prop]
+        S_norm = F.normalize(S, dim=-1)                       # [B, M_s, d_prop]
+        sim = (cand_norm * S_norm).sum(-1)                    # [B, M_s]
         alpha = F.softmax(sim * 4.0, dim=-1)                  # [B, M_s] — sharply peaked
 
         # Learned blend gate
@@ -166,12 +178,18 @@ class LatentScratchpad(nn.Module):
     def read(
         self,
         S: torch.Tensor,           # [B, M_s, d_prop]
-        goal: torch.Tensor         # [B, d_prop]  — goal-conditioned readout
+        goal: torch.Tensor         # [d_prop] OR [B, d_prop] — goal-conditioned readout
     ) -> torch.Tensor:
         """Goal-conditioned weighted readout. Returns [B, d_prop]"""
-        B = S.shape[0]
-        goal_exp = goal.unsqueeze(1)                           # [B, 1, d_prop]
-        sim = F.cosine_similarity(goal_exp, S, dim=-1)        # [B, M_s]
+        B, M_s, d_prop = S.shape
+
+        # Normalize goal to [B, d_prop]
+        if goal.dim() == 1:
+            goal = goal.unsqueeze(0).expand(B, -1)
+
+        goal_norm = F.normalize(goal.unsqueeze(1), dim=-1)    # [B, 1, d_prop]
+        S_norm = F.normalize(S, dim=-1)                       # [B, M_s, d_prop]
+        sim = (goal_norm * S_norm).sum(-1)                    # [B, M_s]
         beta = F.softmax(sim, dim=-1)                          # [B, M_s]
         out = (beta.unsqueeze(-1) * S).sum(1)                 # [B, d_prop]
         return out
@@ -272,14 +290,12 @@ class InferenceEngine(nn.Module):
 
             derived_conf = fire * conf[:, k_rule]
 
-            # Write to scratchpad (weighted by firing strength)
-            for b in range(B):
-                if fire[b].item() > 0.1:    # only write if meaningfully firing
-                    S_new = scratchpad.soft_write(
-                        S_new, new_fact[b:b+1].squeeze(0),
-                        conf=derived_conf[b].item()
-                    )
-                    # Update S_new properly (expand back to batch)
+            # Write to scratchpad — vectorized, no per-batch loop
+            # Only write if average firing strength is meaningful
+            avg_fire = fire.mean().item()
+            if avg_fire > 0.05:
+                avg_conf = derived_conf.mean().item()
+                S_new = scratchpad.soft_write(S_new, new_fact, conf=avg_conf)
 
             best_derived_conf = torch.maximum(best_derived_conf, derived_conf)
 
@@ -476,9 +492,10 @@ class SLE(nn.Module):
                 subgoal, goal_support = self.ie.backward_chain(
                     content, types, conf
                 )
-                # Write subgoal to scratchpad
-                for b in range(B):
-                    S = self.ls.soft_write(S, subgoal[b], conf=goal_support[b].item())
+                # Write subgoal to scratchpad — vectorized (no per-batch loop)
+                # subgoal: [B, d_prop], soft_write handles [B, d_prop] input
+                avg_conf = goal_support.mean().item()
+                S = self.ls.soft_write(S, subgoal, conf=avg_conf)
                 best_conf_goal = torch.maximum(best_conf_goal, goal_support)
 
             # ── Convergence check ──────────────────────────────────
