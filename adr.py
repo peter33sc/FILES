@@ -28,7 +28,7 @@ import torch.nn.functional as F
 import math
 from typing import Dict, Tuple, Optional
 
-from cram.configs.cram_config import CRAMConfig
+from cram_config import CRAMConfig
 
 
 # Path indices

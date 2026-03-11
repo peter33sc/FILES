@@ -28,8 +28,8 @@ import torch.nn.functional as F
 import math
 from typing import Optional, Tuple
 
-from cram.core.normalization import ResonantActivation, RMSNorm
-from cram.configs.cram_config import CRAMConfig
+from normalization import ResonantActivation, RMSNorm
+from cram_config import CRAMConfig
 
 
 def parallel_scan(

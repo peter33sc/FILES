@@ -23,12 +23,12 @@ import torch.nn.functional as F
 import math
 from typing import Optional, Tuple, Dict, List
 
-from cram.configs.cram_config import CRAMConfig
-from cram.core.rsp import MultiHeadRSP
-from cram.core.samg import SAMG
-from cram.core.adr import ADR, PATH_NAMES, N_PATHS
-from cram.core.sle import SLE
-from cram.core.normalization import DBRMSNorm, RMSNorm, SwiGLU
+from cram_config import CRAMConfig
+from rsp import MultiHeadRSP
+from samg import SAMG
+from adr import ADR, PATH_NAMES, N_PATHS
+from sle import SLE
+from normalization import DBRMSNorm, RMSNorm, SwiGLU
 
 
 class CRAMBlock(nn.Module):

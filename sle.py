@@ -29,7 +29,7 @@ import torch.nn.functional as F
 import math
 from typing import Tuple, Dict, List, Optional
 
-from cram.configs.cram_config import CRAMConfig
+from cram_config import CRAMConfig
 
 
 # Proposition type indices
